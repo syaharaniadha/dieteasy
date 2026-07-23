@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="description" content="DietEasy — prototipe asisten pola makan berbasis AI" />
+<title>DietEasy Prototype</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='11' fill='%232B5233'/%3E%3Ctext x='12' y='17' font-size='13' text-anchor='middle' fill='%23fff' font-family='sans-serif'%3ED%3C/text%3E%3C/svg%3E" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" crossorigin></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js" crossorigin></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap');
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #EEF2E7; }
+  .fe-display { font-family: 'Fraunces', serif; }
+  .fe-body { font-family: 'Plus Jakarta Sans', sans-serif; }
+  .fe-mono { font-family: 'DM Mono', monospace; }
+  .fe-scroll::-webkit-scrollbar { display: none; }
+  .fe-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+  #root { width: 100%; }
+  button { font-family: inherit; }
+
+  /* Bingkai HP menyesuaikan layar kecil supaya tidak terpotong saat dibuka di HP */
+  @media (max-width: 480px) {
+    .fe-page { padding: 16px 0 24px !important; }
+    .fe-intro { padding: 0 16px; }
+    .fe-frame { width: 100% !important; max-width: 380px; height: 82vh !important; min-height: 560px; border-radius: 30px !important; }
+  }
+
+  /* Ditampilkan jika React/Babel dari CDN gagal dimuat (mis. tanpa koneksi internet) */
+  #fe-fallback { display: none; max-width: 480px; margin: 60px auto; padding: 24px; font-family: sans-serif; color: #1C2B1E; text-align: center; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div id="fe-fallback">
+  <h2>DietEasy Prototype</h2>
+  <p>Prototipe ini membutuhkan koneksi internet aktif saat pertama kali dibuka, karena React dan font dimuat dari CDN. Silakan buka file ini kembali saat perangkat Anda terhubung ke internet.</p>
+</div>
+<script>
+  // Jika React/ReactDOM gagal dimuat dari CDN (mis. tidak ada internet), tampilkan pesan yang jelas
+  window.addEventListener("load", function () {
+    setTimeout(function () {
+      if (typeof React === "undefined" || typeof ReactDOM === "undefined" || typeof Babel === "undefined") {
+        document.getElementById("fe-fallback").style.display = "block";
+      }
+    }, 1500);
+  });
+</script>
+
+<script type="text/babel" data-presets="react">
+const { useState } = React;
+
+// ---- palette ----
+const C = {
+  page: "#EEF2E7",
+  screen: "#FBFAF4",
+  ink: "#1C2B1E",
+  muted: "#6E7A68",
+  faint: "#A9B3A2",
+  green: "#2B5233",
+  greenDeep: "#1C3A22",
+  mango: "#E39336",
+  chili: "#C1452E",
+  spice: "#8A6A3D",
+  card: "#E4ECDD",
+  line: "#DCE3D4",
+  white: "#FFFFFF",
+};
+
+// ---- simple icon set (no external deps) ----
+const paths = {
+  home: <><path d="M3 10.5 12 3l9 7.5" /><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5" /></>,
+  utensils: <><path d="M6 2v7a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V2" /><path d="M8 11v11" /><path d="M17 2c-2 0-3 2-3 5s1 4 3 4v11" /></>,
+  clipboard: <><rect x="5" y="4" width="14" height="17" rx="2" /><rect x="9" y="2" width="6" height="3" rx="1" /><path d="M8 10h8M8 14h8M8 18h5" /></>,
+  trending: <><polyline points="4,16 10,10 13,13 20,5" /><polyline points="14,5 20,5 20,11" /></>,
+  user: <><circle cx="12" cy="8" r="4" /><path d="M4 21c1.5-4.5 5-6.5 8-6.5s6.5 2 8 6.5" /></>,
+  droplet: <path d="M12 2s7 8 7 13a7 7 0 0 1-14 0c0-5 7-13 7-13z" />,
+  bell: <><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6z" /><path d="M10 20a2 2 0 0 0 4 0" /></>,
+  chevronRight: <polyline points="9,5 16,12 9,19" />,
+  plus: <><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></>,
+  check: <polyline points="4,12 9,18 20,6" />,
+  sunrise: <><circle cx="12" cy="14" r="4" /><path d="M12 2v4M4.2 9.2l1.4 1.4M19.8 9.2l-1.4 1.4M2 20h20M6 20a6 6 0 0 1 12 0" /></>,
+  sun: <><circle cx="12" cy="12" r="4.5" /><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" /></>,
+  moon: <path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z" />,
+  cookie: <><circle cx="12" cy="12" r="9" /><circle cx="9" cy="10" r="1" fill={C.ink} stroke="none" /><circle cx="14" cy="9" r="1" fill={C.ink} stroke="none" /><circle cx="15" cy="14" r="1" fill={C.ink} stroke="none" /><circle cx="10" cy="15" r="1" fill={C.ink} stroke="none" /></>,
+  award: <><circle cx="12" cy="8" r="5" /><path d="M8.5 12.5 7 22l5-3 5 3-1.5-9.5" /></>,
+  sparkles: <><path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5z" /><path d="M19 15l0.7 2 2 0.7-2 0.7-0.7 2-0.7-2-2-0.7 2-0.7z" /></>,
+};
+
+function Icon({ name, size = 18, color = "currentColor", strokeWidth = 2, style }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color}
+      strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" style={style}>
+      {paths[name]}
+    </svg>
+  );
+}
+
+// ---- mini line chart (replaces recharts) ----
+function MiniLineChart({ data, domain, height = 140 }) {
+  const width = 320;
+  const padL = 28, padR = 10, padT = 10, padB = 20;
+  const plotW = width - padL - padR;
+  const plotH = height - padT - padB;
+  const [min, max] = domain;
+  const xStep = plotW / (data.length - 1);
+  const yFor = (v) => padT + plotH * (1 - (v - min) / (max - min));
+  const points = data.map((d, i) => [padL + i * xStep, yFor(d.kg)]);
+  const pathD = points.map((p, i) => (i === 0 ? "M" : "L") + p[0].toFixed(1) + "," + p[1].toFixed(1)).join(" ");
+  const gridYs = [min, (min + max) / 2, max];
+
+  return (
+    <svg width="100%" viewBox={`0 0 ${width} ${height}`} style={{ display: "block" }}>
+      {gridYs.map((g, i) => (
+        <line key={i} x1={padL} x2={width - padR} y1={yFor(g)} y2={yFor(g)} stroke={C.line} strokeWidth="1" />
+      ))}
+      {gridYs.map((g, i) => (
+        <text key={i} x={padL - 6} y={yFor(g) + 3} fontSize="9" fill={C.muted} textAnchor="end" fontFamily="DM Mono, monospace">{g}</text>
+      ))}
+      {data.map((d, i) => (
+        <text key={i} x={padL + i * xStep} y={height - 4} fontSize="9" fill={C.muted} textAnchor="middle" fontFamily="Plus Jakarta Sans, sans-serif">{d.w}</text>
+      ))}
+      <path d={pathD} fill="none" stroke={C.mango} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      {points.map((p, i) => (
+        <circle key={i} cx={p[0]} cy={p[1]} r="3" fill={C.mango} />
+      ))}
+    </svg>
+  );
+}
+
+function Ring({ size = 168, stroke = 14, pct = 0.6, color = C.mango, track = C.card, children }) {
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  return (
+    <div style={{ position: "relative", width: size, height: size }}>
+      <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
+        <circle cx={size / 2} cy={size / 2} r={r} stroke={track} strokeWidth={stroke} fill="none" />
+        <circle
+          cx={size / 2} cy={size / 2} r={r} stroke={color} strokeWidth={stroke} fill="none"
+          strokeDasharray={c} strokeDashoffset={c * (1 - pct)} strokeLinecap="round"
+        />
+      </svg>
+      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function TopBar({ title, subtitle }) {
+  return (
+    <div className="fe-body" style={{ padding: "20px 20px 4px" }}>
+      <div style={{ fontSize: 11, letterSpacing: 1.5, color: C.mango, fontWeight: 700, textTransform: "uppercase" }}>{subtitle}</div>
+      <div className="fe-display" style={{ fontSize: 24, color: C.ink, fontWeight: 600, marginTop: 2 }}>{title}</div>
+    </div>
+  );
+}
+
+function Pill({ children, color = C.green, bg = C.card }) {
+  return (
+    <span className="fe-body" style={{ background: bg, color, fontSize: 11, fontWeight: 700, padding: "4px 10px", borderRadius: 999 }}>
+      {children}
+    </span>
+  );
+}
+
+function MacroBar({ label, val, max, color }) {
+  const pct = Math.min(100, (val / max) * 100);
+  return (
+    <div style={{ flex: 1 }}>
+      <div className="fe-body" style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: C.muted, marginBottom: 4 }}>
+        <span>{label}</span>
+        <span className="fe-mono">{val}g</span>
+      </div>
+      <div style={{ height: 6, background: C.card, borderRadius: 4, overflow: "hidden" }}>
+        <div style={{ width: pct + "%", height: "100%", background: color, borderRadius: 4 }} />
+      </div>
+    </div>
+  );
+}
+
+// ---- screens ----
+function HomeScreen({ log, target, goToMenu }) {
+  const consumed = log.reduce((s, l) => s + l.kcal, 0);
+  const remaining = Math.max(0, target - consumed);
+  const pct = Math.min(1, consumed / target);
+  const recent = log.slice(-3).reverse();
+  const totalProtein = Math.round(consumed * 0.09);
+  const totalCarb = Math.round(consumed * 0.2);
+  const totalFat = Math.round(consumed * 0.045);
+
+  return (
+    <div className="fe-scroll" style={{ overflowY: "auto", height: "100%" }}>
+      <div className="fe-body" style={{ padding: "22px 20px 0" }}>
+        <div style={{ fontSize: 13, color: C.muted }}>Selamat pagi, Nadia</div>
+        <div className="fe-display" style={{ fontSize: 22, color: C.ink, fontWeight: 600 }}>Kamis, 2 Juli</div>
+      </div>
+
+      <div style={{ margin: "18px 20px 0", background: C.green, borderRadius: 24, padding: 20, color: C.white, position: "relative", overflow: "hidden" }}>
+        <Icon name="sparkles" size={16} color="#fff" style={{ position: "absolute", top: 16, right: 16, opacity: 0.6 }} />
+        <div className="fe-body" style={{ fontSize: 11, letterSpacing: 1.2, textTransform: "uppercase", opacity: 0.75, fontWeight: 700 }}>Kalori hari ini</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 18, marginTop: 10 }}>
+          <Ring size={112} stroke={11} pct={pct} color={C.mango} track="rgba(255,255,255,0.16)">
+            <div style={{ textAlign: "center" }}>
+              <div className="fe-mono" style={{ fontSize: 20, fontWeight: 500 }}>{consumed}</div>
+              <div className="fe-body" style={{ fontSize: 10, opacity: 0.75 }}>/ {target} kkal</div>
+            </div>
+          </Ring>
+          <div style={{ flex: 1 }}>
+            <div className="fe-body" style={{ fontSize: 13, opacity: 0.85, lineHeight: 1.5 }}>
+              Sisa <b className="fe-mono">{remaining} kkal</b> untuk hari ini. Makan malam disarankan sebelum pukul 19.30.
+            </div>
+            <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+              <Pill bg="rgba(255,255,255,0.15)" color="#fff">Target: turun 4kg</Pill>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: "flex", gap: 10, margin: "16px 20px 0" }}>
+        <div style={{ flex: 1, background: C.screen, border: `1px solid ${C.line}`, borderRadius: 16, padding: "12px 14px" }}>
+          <MacroBar label="Protein" val={totalProtein} max={90} color={C.chili} />
+        </div>
+        <div style={{ flex: 1, background: C.screen, border: `1px solid ${C.line}`, borderRadius: 16, padding: "12px 14px" }}>
+          <MacroBar label="Karbo" val={totalCarb} max={200} color={C.mango} />
+        </div>
+        <div style={{ flex: 1, background: C.screen, border: `1px solid ${C.line}`, borderRadius: 16, padding: "12px 14px" }}>
+          <MacroBar label="Lemak" val={totalFat} max={55} color={C.spice} />
+        </div>
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "22px 20px 10px" }}>
+        <div className="fe-display" style={{ fontSize: 16, fontWeight: 600, color: C.ink }}>Makanan tercatat</div>
+        <span onClick={goToMenu} className="fe-body" style={{ fontSize: 12, color: C.green, fontWeight: 700, cursor: "pointer" }}>Tambah menu</span>
+      </div>
+      <div style={{ padding: "0 20px 24px", display: "flex", flexDirection: "column", gap: 10 }}>
+        {recent.length === 0 && (
+          <div className="fe-body" style={{ fontSize: 12.5, color: C.muted, textAlign: "center", padding: "16px 0" }}>
+            Belum ada makanan tercatat hari ini.
+          </div>
+        )}
+        {recent.map((m, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, background: C.screen, border: `1px solid ${C.line}`, borderRadius: 16, padding: 12 }}>
+            <div style={{ width: 38, height: 38, borderRadius: 12, background: C.card, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Icon name={m.icon || "utensils"} size={17} color={C.green} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div className="fe-body" style={{ fontSize: 13, color: C.ink, fontWeight: 600 }}>{m.name}</div>
+              <div className="fe-mono" style={{ fontSize: 11, color: C.muted }}>{m.time} · {m.kcal} kkal</div>
+            </div>
+            <Icon name="chevronRight" size={16} color={C.faint} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function MenuScreen({ addMeal }) {
+  const [addedKeys, setAddedKeys] = useState({});
+  const groups = [
+    { label: "Sarapan", icon: "sunrise", items: [
+      { name: "Bubur ayam + telur rebus", kcal: 320, tag: "Tinggi protein" },
+      { name: "Roti gandum, alpukat, telur", kcal: 290, tag: "Serat tinggi" },
+    ]},
+    { label: "Makan Siang", icon: "sun", items: [
+      { name: "Nasi merah, ayam bakar, tumis kangkung", kcal: 480, tag: "Seimbang" },
+      { name: "Gado-gado tanpa kerupuk", kcal: 410, tag: "Sayur lengkap" },
+    ]},
+    { label: "Makan Malam", icon: "moon", items: [
+      { name: "Sup bening tahu & sayuran", kcal: 310, tag: "Rendah kalori" },
+    ]},
+    { label: "Camilan", icon: "cookie", items: [
+      { name: "Pisang rebus + kacang almond", kcal: 150, tag: "Ringan" },
+    ]},
+  ];
+
+  const handleAdd = (groupIcon, item, key) => {
+    addMeal({ icon: groupIcon, name: item.name, kcal: item.kcal });
+    setAddedKeys((prev) => ({ ...prev, [key]: true }));
+    setTimeout(() => setAddedKeys((prev) => ({ ...prev, [key]: false })), 1400);
+  };
+
+  return (
+    <div className="fe-scroll" style={{ overflowY: "auto", height: "100%" }}>
+      <TopBar subtitle="AI Meal Recommendation" title="Menu hari ini" />
+      <div className="fe-body" style={{ margin: "8px 20px 16px", fontSize: 12.5, color: C.muted, lineHeight: 1.5 }}>
+        Disusun otomatis berdasarkan kebutuhan 1.650 kkal/hari, target turun berat badan, dan aktivitas sedang.
+      </div>
+      <div style={{ padding: "0 20px 24px" }}>
+        {groups.map((g, gi) => (
+          <div key={gi} style={{ marginBottom: 18 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+              <Icon name={g.icon} size={14} color={C.mango} />
+              <span className="fe-body" style={{ fontSize: 12, fontWeight: 700, color: C.ink, textTransform: "uppercase", letterSpacing: 0.6 }}>{g.label}</span>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {g.items.map((it, ii) => {
+                const key = gi + "-" + ii;
+                const isAdded = addedKeys[key];
+                return (
+                  <div key={ii} style={{ background: C.screen, border: `1px solid ${C.line}`, borderRadius: 16, padding: 12, display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ flex: 1 }}>
+                      <div className="fe-body" style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>{it.name}</div>
+                      <div style={{ display: "flex", gap: 6, marginTop: 5, alignItems: "center" }}>
+                        <span className="fe-mono" style={{ fontSize: 11, color: C.muted }}>{it.kcal} kkal</span>
+                        <Pill>{it.tag}</Pill>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleAdd(g.icon, it, key)}
+                      style={{ width: 30, height: 30, borderRadius: "50%", background: isAdded ? C.mango : C.green, border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "background 0.2s" }}
+                      aria-label={"Tambah " + it.name}
+                    >
+                      <Icon name={isAdded ? "check" : "plus"} size={15} color="#fff" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TrackerScreen({ log, target, addMeal, removeMeal }) {
+  const consumed = log.reduce((s, l) => s + l.kcal, 0);
+  const remaining = Math.max(0, target - consumed);
+
+  const handleAddCustom = () => {
+    const name = window.prompt("Nama makanan / minuman:");
+    if (!name) return;
+    const kcalStr = window.prompt("Jumlah kalori (kkal):", "0");
+    const kcal = parseInt(kcalStr, 10);
+    addMeal({ icon: "utensils", name, kcal: isNaN(kcal) ? 0 : kcal });
+  };
+
+  return (
+    <div className="fe-scroll" style={{ overflowY: "auto", height: "100%" }}>
+      <TopBar subtitle="Calorie Tracker" title="Catatan makan" />
+      <div style={{ margin: "14px 20px", background: C.card, borderRadius: 16, padding: 14, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div className="fe-body">
+          <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: "uppercase" }}>Terkonsumsi</div>
+          <div className="fe-mono" style={{ fontSize: 20, color: C.ink }}>{consumed} <span style={{ fontSize: 12, color: C.muted }}>kkal</span></div>
+        </div>
+        <div style={{ width: 1, height: 30, background: C.line }} />
+        <div className="fe-body" style={{ textAlign: "right" }}>
+          <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: "uppercase" }}>Sisa</div>
+          <div className="fe-mono" style={{ fontSize: 20, color: C.green }}>{remaining} <span style={{ fontSize: 12, color: C.muted }}>kkal</span></div>
+        </div>
+      </div>
+      <div style={{ padding: "4px 20px 12px", display: "flex", flexDirection: "column" }}>
+        {log.length === 0 && (
+          <div className="fe-body" style={{ fontSize: 12.5, color: C.muted, textAlign: "center", padding: "16px 0" }}>
+            Belum ada catatan. Tambahkan makanan pertamamu hari ini.
+          </div>
+        )}
+        {log.map((l, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", borderBottom: i < log.length - 1 ? `1px solid ${C.line}` : "none" }}>
+            <div style={{ width: 34, height: 34, borderRadius: 10, background: C.card, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Icon name="check" size={14} color={C.green} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div className="fe-body" style={{ fontSize: 13, color: C.ink, fontWeight: 600 }}>{l.name}</div>
+              <div className="fe-mono" style={{ fontSize: 11, color: C.muted }}>{l.time}</div>
+            </div>
+            <div className="fe-mono" style={{ fontSize: 12, color: C.ink }}>{l.kcal} kkal</div>
+            <button
+              onClick={() => removeMeal(i)}
+              aria-label={"Hapus " + l.name}
+              style={{ background: "none", border: "none", cursor: "pointer", color: C.faint, fontSize: 16, lineHeight: 1, padding: "0 2px" }}
+            >
+              ×
+            </button>
+          </div>
+        ))}
+      </div>
+      <div style={{ padding: "0 20px 24px" }}>
+        <button
+          onClick={handleAddCustom}
+          style={{ width: "100%", padding: "13px 0", borderRadius: 14, border: `1.5px dashed ${C.faint}`, background: "transparent", color: C.green, fontWeight: 700, fontSize: 13, cursor: "pointer" }}
+          className="fe-body"
+        >
+          + Tambah makanan
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ProgressScreen() {
+  const data = [
+    { w: "M1", kg: 63.5 }, { w: "M2", kg: 62.8 }, { w: "M3", kg: 62.1 },
+    { w: "M4", kg: 61.4 }, { w: "M5", kg: 60.6 }, { w: "M6", kg: 60.0 },
+    { w: "M7", kg: 59.2 }, { w: "M8", kg: 58.4 },
+  ];
+  return (
+    <div className="fe-scroll" style={{ overflowY: "auto", height: "100%" }}>
+      <TopBar subtitle="Progress Monitoring" title="Perkembangan" />
+      <div style={{ display: "flex", gap: 10, margin: "14px 20px" }}>
+        <div style={{ flex: 1, background: C.screen, border: `1px solid ${C.line}`, borderRadius: 16, padding: 14 }}>
+          <div className="fe-body" style={{ fontSize: 11, color: C.muted, fontWeight: 700 }}>BMI SAAT INI</div>
+          <div className="fe-mono" style={{ fontSize: 22, color: C.ink }}>22.8</div>
+          <Pill color={C.green}>Normal</Pill>
+        </div>
+        <div style={{ flex: 1, background: C.screen, border: `1px solid ${C.line}`, borderRadius: 16, padding: 14 }}>
+          <div className="fe-body" style={{ fontSize: 11, color: C.muted, fontWeight: 700 }}>BERAT SEKARANG</div>
+          <div className="fe-mono" style={{ fontSize: 22, color: C.ink }}>58.4<span style={{ fontSize: 12 }}> kg</span></div>
+          <span className="fe-mono" style={{ fontSize: 11, color: C.chili }}>−5.1 kg</span>
+        </div>
+      </div>
+      <div style={{ margin: "0 20px", background: C.screen, border: `1px solid ${C.line}`, borderRadius: 16, padding: "14px 8px 4px" }}>
+        <div className="fe-body" style={{ fontSize: 12, fontWeight: 700, color: C.ink, padding: "0 12px 6px" }}>Tren berat badan · 8 minggu</div>
+        <MiniLineChart data={data} domain={[57, 64]} height={140} />
+      </div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "20px 20px 10px" }}>
+        <div className="fe-display" style={{ fontSize: 16, fontWeight: 600, color: C.ink }}>Pencapaian</div>
+      </div>
+      <div style={{ display: "flex", gap: 10, padding: "0 20px 24px" }}>
+        {[["7 hari beruntun", "award"], ["5kg terlewati", "trending"], ["Target air tercapai", "droplet"]].map(([label, ic], i) => (
+          <div key={i} style={{ flex: 1, background: C.card, borderRadius: 14, padding: "12px 8px", textAlign: "center" }}>
+            <Icon name={ic} size={18} color={C.green} style={{ margin: "0 auto 6px", display: "block" }} />
+            <div className="fe-body" style={{ fontSize: 10.5, color: C.ink, fontWeight: 600, lineHeight: 1.3 }}>{label}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ProfileScreen() {
+  const rows = ["Data diri", "Target kesehatan", "Notifikasi & pengingat", "Langganan Premium", "Bantuan"];
+  return (
+    <div className="fe-scroll" style={{ overflowY: "auto", height: "100%" }}>
+      <TopBar subtitle="Akun" title="Profil" />
+      <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "16px 20px" }}>
+        <div style={{ width: 52, height: 52, borderRadius: "50%", background: C.green, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }} className="fe-display">
+          N
+        </div>
+        <div>
+          <div className="fe-body" style={{ fontWeight: 700, fontSize: 15, color: C.ink }}>Nadia Pratiwi</div>
+          <div className="fe-body" style={{ fontSize: 12, color: C.muted }}>24 th · 160 cm · Target: turun berat badan</div>
+        </div>
+      </div>
+      <div style={{ margin: "6px 20px 18px", background: C.green, borderRadius: 18, padding: 16, color: "#fff" }}>
+        <div className="fe-body" style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", opacity: 0.75 }}>Coba Premium</div>
+        <div className="fe-display" style={{ fontSize: 16, fontWeight: 600, margin: "4px 0 8px" }}>1 bulan gratis untuk fitur AI lengkap</div>
+        <div style={{ background: C.mango, display: "inline-block", padding: "8px 16px", borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: "pointer" }} className="fe-body">Aktifkan sekarang</div>
+      </div>
+      <div style={{ padding: "0 20px" }}>
+        {rows.map((r, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 4px", borderBottom: i < rows.length - 1 ? `1px solid ${C.line}` : "none" }}>
+            <span className="fe-body" style={{ fontSize: 13.5, color: C.ink, fontWeight: 500 }}>{r}</span>
+            <Icon name="chevronRight" size={16} color={C.faint} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const TABS = [
+  { key: "home", label: "Beranda", icon: "home", Screen: HomeScreen },
+  { key: "menu", label: "Menu", icon: "utensils", Screen: MenuScreen },
+  { key: "tracker", label: "Catatan", icon: "clipboard", Screen: TrackerScreen },
+  { key: "progress", label: "Progres", icon: "trending", Screen: ProgressScreen },
+  { key: "profile", label: "Profil", icon: "user", Screen: ProfileScreen },
+];
+
+const DAILY_TARGET = 1650;
+const INITIAL_LOG = [
+  { icon: "sunrise", time: "07:32", name: "Bubur ayam + telur rebus", kcal: 320 },
+  { icon: "droplet", time: "10:15", name: "Air putih 500ml", kcal: 0 },
+  { icon: "sun", time: "12:41", name: "Nasi merah, ayam bakar, tumis kangkung", kcal: 480 },
+  { icon: "cookie", time: "15:20", name: "Pisang rebus", kcal: 90 },
+];
+
+function DietEasyPrototype() {
+  const [tab, setTab] = useState("home");
+  const [log, setLog] = useState(INITIAL_LOG);
+  const Active = TABS.find(t => t.key === tab).Screen;
+
+  const addMeal = (meal) => {
+    const now = new Date();
+    const time = String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
+    setLog((prev) => [...prev, { ...meal, time }]);
+  };
+  const removeMeal = (index) => {
+    setLog((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  return (
+    <div className="fe-body fe-page" style={{ minHeight: "100vh", background: C.page, display: "flex", flexDirection: "column", alignItems: "center", padding: "40px 16px 60px" }}>
+
+      <div className="fe-intro" style={{ textAlign: "center", maxWidth: 420, marginBottom: 28 }}>
+        <div style={{ fontSize: 11, letterSpacing: 2, color: C.spice, fontWeight: 700, textTransform: "uppercase" }}>Prototipe Aplikasi</div>
+        <div className="fe-display" style={{ fontSize: 30, color: C.ink, fontWeight: 600, margin: "6px 0 8px" }}>DietEasy</div>
+        <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.6 }}>
+          Asisten pola makan berbasis AI — dari laporan bisnis teknologi, diwujudkan sebagai antarmuka yang bisa dicoba.
+        </p>
+        <div style={{ display: "flex", justifyContent: "center", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
+          {[["84%", "makan cepat saji"], ["79%", "sulit pilih menu"], ["86%", "ingin rekomendasi AI"]].map(([n, l], i) => (
+            <div key={i} style={{ background: C.screen, border: `1px solid ${C.line}`, borderRadius: 12, padding: "6px 12px" }}>
+              <span className="fe-mono" style={{ fontSize: 13, color: C.green, fontWeight: 500 }}>{n}</span>
+              <span style={{ fontSize: 10.5, color: C.muted, marginLeft: 5 }}>{l}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="fe-frame" style={{ width: 360, height: 720, background: C.ink, borderRadius: 44, padding: 12, boxShadow: "0 30px 60px -20px rgba(28,43,30,0.45)" }}>
+        <div style={{ width: "100%", height: "100%", background: C.screen, borderRadius: 32, overflow: "hidden", position: "relative", display: "flex", flexDirection: "column" }}>
+          <div style={{ position: "absolute", top: 0, left: "50%", transform: "translateX(-50%)", width: 120, height: 24, background: C.ink, borderRadius: "0 0 16px 16px", zIndex: 10 }} />
+          <div style={{ height: 34, display: "flex", alignItems: "flex-end", justifyContent: "space-between", padding: "0 22px 6px" }}>
+            <span className="fe-mono" style={{ fontSize: 11, color: C.ink }}>9:41</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <Icon name="bell" size={12} color={C.muted} />
+            </div>
+          </div>
+
+          <div style={{ flex: 1, minHeight: 0 }}>
+            <Active log={log} target={DAILY_TARGET} addMeal={addMeal} removeMeal={removeMeal} goToMenu={() => setTab("menu")} />
+          </div>
+
+          <div style={{ display: "flex", borderTop: `1px solid ${C.line}`, background: C.screen, padding: "10px 6px 16px" }}>
+            {TABS.map(t => {
+              const isActive = t.key === tab;
+              return (
+                <button
+                  key={t.key}
+                  onClick={() => setTab(t.key)}
+                  style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, background: "none", border: "none", cursor: "pointer", padding: "4px 0" }}
+                >
+                  <Icon name={t.icon} size={19} color={isActive ? C.green : C.faint} strokeWidth={isActive ? 2.4 : 2} />
+                  <span className="fe-body" style={{ fontSize: 9.5, color: isActive ? C.green : C.faint, fontWeight: isActive ? 700 : 500 }}>{t.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <div className="fe-body" style={{ fontSize: 11.5, color: C.muted, marginTop: 18, textAlign: "center", maxWidth: 340 }}>
+        Ketuk ikon di bawah layar untuk berpindah antar fitur · Beranda · Menu AI · Catatan · Progres · Profil
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<DietEasyPrototype />);
+</script>
+</body>
+</html>
